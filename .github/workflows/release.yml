@@ -306,7 +306,9 @@ jobs:
           key: wasm-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+        run: |
+          VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | head -1 | sed 's/.*version = "\([^"]*\)".*/\1/')
+          cargo install wasm-bindgen-cli --version "$VERSION" --locked
 
       - name: Install wasm-opt
         run: |

@@ -10,11 +10,10 @@ rustup target add wasm32-unknown-unknown
 echo "Building for wasm32..."
 cargo build --target wasm32-unknown-unknown --profile wasm-release
 
-# Check wasm-bindgen is installed
-if ! command -v wasm-bindgen &>/dev/null; then
-    echo "Installing wasm-bindgen-cli..."
-    cargo install wasm-bindgen-cli
-fi
+# Install wasm-bindgen-cli at the version matching Cargo.lock
+WASM_BINDGEN_VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | head -1 | sed 's/.*version = "\([^"]*\)".*/\1/')
+echo "Installing wasm-bindgen-cli $WASM_BINDGEN_VERSION..."
+cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION" --locked
 
 WASM_FILE="target/wasm32-unknown-unknown/wasm-release/blastzone-arena.wasm"
 
