@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlastZone Arena</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #061710;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: monospace;
+      color: #eaf4ff;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+      letter-spacing: 4px;
+      color: #ff8a2a;
+    }
+
+    #canvas-wrap {
+      position: relative;
+    }
+
+    canvas#bevy {
+      display: block;
+      width: 832px;
+      height: 768px;
+      max-width: 100vw;
+      max-height: 90vh;
+      object-fit: contain;
+      image-rendering: pixelated;
+      border: 2px solid #1c4d31;
+    }
+
+    #start-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 23, 16, 0.80);
+    }
+
+    #start-btn {
+      font-family: monospace;
+      font-size: 1.3rem;
+      letter-spacing: 3px;
+      padding: 16px 48px;
+      background: #ff8a2a;
+      color: #061710;
+      border: none;
+      cursor: pointer;
+    }
+
+    #start-btn:hover { background: #ffa040; }
+
+    #controls {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: #4a7a5a;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <h1>BLASTZONE ARENA</h1>
+
+  <div id="canvas-wrap">
+    <canvas id="bevy"></canvas>
+    <div id="start-overlay">
+      <button id="start-btn">&#9654;&nbsp; CLICK TO PLAY</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    WASD / Arrows: Move &nbsp;|&nbsp; Space / X: Bomb &nbsp;|&nbsp; F11: Fullscreen
+  </div>
+
+  <script type="module">
+    import init from './blastzone-arena.js';
+
+    // Pre-fetch and compile the WASM before the user clicks.
+    // By the time they click, compilation is done, so init() completes
+    // within the gesture budget — keeping AudioContext creation valid.
+    const compiled = WebAssembly.compileStreaming(fetch('./blastzone-arena_bg.wasm'));
+
+    document.getElementById('start-btn').addEventListener('click', async () => {
+      document.getElementById('start-overlay').remove();
+      await init(await compiled);
+    }, { once: true });
+  </script>
+</body>
+</html>

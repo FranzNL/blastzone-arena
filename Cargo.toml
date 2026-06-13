@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.15", features = ["webgl2", "wav"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [profile.release]
 opt-level = "z"
