@@ -1,0 +1,361 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: macOS (${{ matrix.arch }})
+    runs-on: macos-14
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-apple-darwin
+          - arch: aarch64
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Generate .icns
+        run: |
+          mkdir -p AppIcon.iconset
+          sips -z 16   16   assets/icon-1024.png --out AppIcon.iconset/icon_16x16.png
+          sips -z 32   32   assets/icon-1024.png --out AppIcon.iconset/icon_16x16@2x.png
+          sips -z 32   32   assets/icon-1024.png --out AppIcon.iconset/icon_32x32.png
+          sips -z 64   64   assets/icon-1024.png --out AppIcon.iconset/icon_32x32@2x.png
+          sips -z 128  128  assets/icon-1024.png --out AppIcon.iconset/icon_128x128.png
+          sips -z 256  256  assets/icon-1024.png --out AppIcon.iconset/icon_128x128@2x.png
+          sips -z 256  256  assets/icon-1024.png --out AppIcon.iconset/icon_256x256.png
+          sips -z 512  512  assets/icon-1024.png --out AppIcon.iconset/icon_256x256@2x.png
+          sips -z 512  512  assets/icon-1024.png --out AppIcon.iconset/icon_512x512.png
+          cp assets/icon-1024.png AppIcon.iconset/icon_512x512@2x.png
+          iconutil -c icns AppIcon.iconset -o blastzone-arena.icns
+
+      - name: Check signing secrets
+        id: signing
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ] && \
+             [ -n "${{ secrets.APPLE_SIGNING_IDENTITY }}" ] && \
+             [ -n "${{ secrets.APPLE_ID }}" ] && \
+             [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Apple signing secrets not set — DMG will be ad-hoc signed and not notarized."
+          fi
+
+      - name: Import signing certificate
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Build .app bundle
+        run: |
+          APP=blastzone-arena
+          ARCH=${{ matrix.arch }}
+          BINARY=target/${{ matrix.target }}/release/$APP
+
+          mkdir -p "$APP.app/Contents/MacOS"
+          mkdir -p "$APP.app/Contents/Resources"
+          cp "$BINARY" "$APP.app/Contents/MacOS/$APP"
+          cp -r assets "$APP.app/Contents/Resources/"
+          cp blastzone-arena.icns "$APP.app/Contents/Resources/icon.icns"
+
+          cat > "$APP.app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>$APP</string>
+            <key>CFBundleIconFile</key>
+            <string>icon</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.blastzonearena.app</string>
+            <key>CFBundleName</key>
+            <string>BlastZone Arena</string>
+            <key>CFBundleVersion</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Sign .app bundle
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --deep --force --options runtime \
+            --sign "$APPLE_SIGNING_IDENTITY" \
+            --entitlements <(cat <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          ) \
+            blastzone-arena.app
+
+      - name: Ad-hoc sign .app bundle
+        if: steps.signing.outputs.enabled != 'true'
+        run: codesign --deep --force --sign - blastzone-arena.app
+
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "BlastZone Arena" -srcfolder blastzone-arena.app \
+            -ov -format UDZO "blastzone-arena-${{ matrix.arch }}.dmg"
+
+      - name: Sign DMG
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+            "blastzone-arena-${{ matrix.arch }}.dmg"
+
+      - name: Notarize DMG
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "blastzone-arena-${{ matrix.arch }}.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "blastzone-arena-${{ matrix.arch }}.dmg"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmg-${{ matrix.arch }}
+          path: blastzone-arena-${{ matrix.arch }}.dmg
+
+  build-linux:
+    name: Linux (x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libudev-dev \
+            libx11-dev \
+            libxi-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-x86_64-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package tar.gz
+        run: |
+          APP=blastzone-arena
+          DIST=$APP-linux-x86_64
+          mkdir -p "$DIST"
+          cp target/release/$APP "$DIST/"
+          cp -r assets "$DIST/"
+          cp assets/icon.png "$DIST/$APP.png"
+          cat > "$DIST/$APP.desktop" <<DESKTOP
+          [Desktop Entry]
+          Type=Application
+          Name=BlastZone Arena
+          Comment=Bomberman-style arena game built with Bevy
+          Exec=$APP
+          Icon=$APP
+          Terminal=false
+          Categories=Game;ArcadeGame;
+          DESKTOP
+          tar -czf "$DIST.tar.gz" "$DIST"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: blastzone-arena-linux-x86_64.tar.gz
+
+  build-windows:
+    name: Windows (x86_64)
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-x86_64-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Generate .ico
+        run: magick convert assets/icon-256.png assets/icon-128.png installer\icon.ico
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          Copy-Item "target\release\blastzone-arena.exe" "installer\"
+          Copy-Item -Recurse assets "installer\"
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer\windows.nsi
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: blastzone-arena-windows-x86_64-setup.exe
+
+  build-wasm:
+    name: WASM
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: wasm-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+
+      - name: Install wasm-opt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binaryen
+
+      - name: Build WASM
+        run: bash build_wasm.sh
+
+      - name: Package WASM zip
+        run: |
+          cd dist
+          zip -r ../blastzone-arena-wasm.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: blastzone-arena-wasm.zip
+
+  release:
+    name: Create GitHub Release
+    needs: [build-macos, build-linux, build-windows, build-wasm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BlastZone Arena ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            blastzone-arena-x86_64.dmg
+            blastzone-arena-aarch64.dmg
+            blastzone-arena-linux-x86_64.tar.gz
+            blastzone-arena-windows-x86_64-setup.exe
+            blastzone-arena-wasm.zip
+          body: |
+            ## BlastZone Arena ${{ github.ref_name }}
+
+            A Bomberman-style arena game built with Bevy.
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon) | `blastzone-arena-aarch64.dmg` |
+            | macOS (Intel) | `blastzone-arena-x86_64.dmg` |
+            | Linux x86_64 | `blastzone-arena-linux-x86_64.tar.gz` |
+            | Windows x86_64 | `blastzone-arena-windows-x86_64-setup.exe` |
+            | Web (WASM) | `blastzone-arena-wasm.zip` |

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BlastZone Arena — Tileset Variants</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1b222c; --line:#2a323d;
+    --ink:#e8edf2; --dim:#8a96a4; --faint:#5a6573;
+    --grass:#4a8f3c; --desert:#d9b779; --ice:#9fb6c9;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;}
+  body{padding:56px 40px 80px;}
+  .wrap{max-width:1180px;margin:0 auto;}
+  header.top{margin-bottom:48px;}
+  .kicker{font-family:'SFMono-Regular',ui-monospace,Menlo,monospace;
+    font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--faint);margin:0 0 14px;}
+  h1{font-size:46px;line-height:1.02;margin:0 0 16px;font-weight:800;letter-spacing:-.02em;}
+  h1 .em{background:linear-gradient(90deg,#ffae3d,#ff5e3a);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .lede{font-size:16px;line-height:1.55;color:var(--dim);max-width:680px;margin:0;}
+  .lede b{color:var(--ink);font-weight:600;}
+
+  .variant{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    padding:30px 30px 34px;margin-top:34px;overflow:hidden;}
+  .vhead{display:flex;align-items:baseline;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+  .vnum{font-family:ui-monospace,monospace;font-size:13px;color:var(--faint);}
+  .vname{font-size:26px;font-weight:750;letter-spacing:-.01em;margin:0;}
+  .vtag{font-size:13.5px;color:var(--dim);}
+  .swatch-dot{width:13px;height:13px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:7px;
+    box-shadow:0 0 0 3px rgba(255,255,255,.06);}
+
+  .vbody{display:grid;grid-template-columns:572px 1fr;gap:34px;align-items:start;}
+  @media(max-width:1040px){.vbody{grid-template-columns:1fr;}}
+
+  .arena{width:572px;height:484px;position:relative;border-radius:10px;overflow:hidden;
+    box-shadow:0 14px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.05);
+    image-rendering:auto;}
+  .arena img{position:absolute;display:block;}
+  .alabel{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);
+    margin:10px 2px 0;letter-spacing:.04em;}
+
+  .sheet{display:flex;flex-direction:column;gap:20px;}
+  .sgroup-title{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--faint);margin:0 0 11px;
+    border-bottom:1px solid var(--line);padding-bottom:7px;}
+  .swrow{display:flex;flex-wrap:wrap;gap:12px;}
+  .cell{display:flex;flex-direction:column;align-items:center;gap:6px;width:72px;}
+  .cell .thumb{width:60px;height:60px;border-radius:9px;background:var(--panel2);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .cell .thumb.dark{background:#10151c;}
+  .cell img{width:54px;height:54px;object-fit:contain;display:block;}
+  .cell .cap{font-size:10.5px;color:var(--dim);text-align:center;line-height:1.2;}
+
+  footer{margin-top:54px;border-top:1px solid var(--line);padding-top:22px;
+    color:var(--faint);font-size:13px;line-height:1.7;}
+  footer code{font-family:ui-monospace,monospace;color:var(--dim);background:var(--panel2);
+    padding:2px 7px;border-radius:5px;font-size:12px;}
+  footer b{color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">BlastZone Arena · Asset Direction</p>
+    <h1>Three tileset variants for the <span class="em">arena</span>.</h1>
+    <p class="lede">Original, copyright-safe art in a <b>modern HD pixel style</b> — drop-in PNGs at <b>128&nbsp;px</b> source resolution (logical tile is 32&nbsp;px; sprites scale crisply). Each variant is a complete, self-contained set: terrain, bombs, explosion segments, a 4-direction bomber, an enemy, and four power-ups. Compare them in-context below, then pick a direction.</p>
+  </header>
+
+  <div id="variants"></div>
+
+  <footer>
+    <b>Files</b> &nbsp;Each variant lives in <code>sprites/&lt;theme&gt;/</code> — e.g. <code>floor.png</code>, <code>wall.png</code>, <code>block.png</code>, <code>bomb1–3.png</code>, <code>exp_center.png</code>, <code>exp_arm_h/v.png</code>, <code>exp_tip_u/d/l/r.png</code>, <code>char_down/up/left 1–2.png</code> (right = mirror left), <code>enemy1–2.png</code>, <code>pu_fire/bomb/speed/shield.png</code>.<br/>
+    <b>Engine</b> &nbsp;Map RGB keys in <code>level.rs</code> to these handles in <code>game_assets.rs</code>; the explosion segments compose the classic cross at runtime. Once you pick a variant, say the word and I'll wire the asset handles + level legend for it.
+  </footer>
+</div>
+
+<script>
+const THEMES = [
+  {id:'grassland', name:'Grassland', tag:'Verdant overgrown ruins — mossy stone, wooden crates, slime.', dot:'#4a8f3c', enemy:'Slime'},
+  {id:'desert',    name:'Sun Bazaar', tag:'Sandstone arena — adobe brick, scarab beetles, warm light.', dot:'#d99b3c', enemy:'Beetle'},
+  {id:'ice',       name:'Frost Works', tag:'Icy tech bay — steel & crystal, frost spirits, cool steel.', dot:'#5ad1ff', enemy:'Frost Spirit'},
+];
+
+const CELL = 44, COLS = 13, ROWS = 11;
+// layout legend: W indestructible wall, B destructible block, . floor
+// classic grid: border wall + pillar lattice on even/even
+function buildLayout(seed){
+  let s = seed;
+  const rnd = ()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; };
+  const g = [];
+  for(let r=0;r<ROWS;r++){
+    const row=[];
+    for(let c=0;c<COLS;c++){
+      if(r===0||c===0||r===ROWS-1||c===COLS-1){ row.push('W'); }
+      else if(r%2===0 && c%2===0){ row.push('W'); }
+      else {
+        // keep the three spawn corners + a central cross clear
+        const spawnClear = (r<=2&&c<=2)||(r>=ROWS-3&&c>=COLS-3)||(r<=2&&c>=COLS-3)||(r>=ROWS-3&&c<=2);
+        const midCross = (r>=4&&r<=6&&c>=5&&c<=9)||(r>=3&&r<=7&&c>=6&&c<=8);
+        if(spawnClear||midCross) row.push('.');
+        else row.push(rnd()<0.62?'B':'.');
+      }
+    }
+    g.push(row);
+  }
+  return g;
+}
+
+function px(n){ return n*CELL; }
+
+function buildArena(theme){
+  const base = `sprites/${theme.id}/`;
+  const layout = buildLayout(12345);
+  const arena = document.createElement('div');
+  arena.className = 'arena';
+
+  function add(src,col,row,opts={}){
+    const im = document.createElement('img');
+    im.src = base+src;
+    const w = opts.w||CELL, h = opts.h||CELL;
+    im.style.width = w+'px'; im.style.height = h+'px';
+    im.style.left = px(col) + (opts.dx||0) + 'px';
+    im.style.top  = px(row) + (opts.dy||0) + 'px';
+    im.style.zIndex = opts.z!=null?opts.z:1;
+    if(opts.flip) im.style.transform='scaleX(-1)';
+    arena.appendChild(im);
+  }
+
+  // floor everywhere first
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) add('floor.png',c,r,{z:0});
+  // terrain
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const t=layout[r][c];
+    if(t==='W') add('wall.png',c,r,{z:2});
+    else if(t==='B') add('block.png',c,r,{z:2});
+  }
+
+  // reveal two power-ups where a couple blocks would have been (clear those blocks first visually)
+  // place entities on known-clear floor cells
+  // explosion cross centred at (7,5) area — ensure clear
+  const ex=7, ey=5;
+  add('exp_center.png',ex,ey,{z:6});
+  add('exp_arm_h.png',ex-1,ey,{z:5}); add('exp_tip_l.png',ex-2,ey,{z:5});
+  add('exp_arm_h.png',ex+1,ey,{z:5}); add('exp_tip_r.png',ex+2,ey,{z:5});
+  add('exp_arm_v.png',ex,ey-1,{z:5}); add('exp_tip_u.png',ex,ey-2,{z:5});
+  add('exp_tip_d.png',ex,ey+1,{z:5});
+
+  // a ticking bomb elsewhere
+  add('bomb3.png',3,7,{z:6});
+
+  // bomber (player) top-left spawn, facing down, big
+  add('char_down1.png',1,1,{z:7});
+  // a second bomber facing right (mirror) lower
+  add('char_left1.png',1,8,{z:7,flip:true});
+
+  // enemy
+  add('enemy1.png',11,2,{z:6});
+  add('enemy1.png',9,9,{z:6});
+
+  // a revealed power-up (sits on floor)
+  add('pu_fire.png',5,2,{z:5,w:CELL-6,h:CELL-6,dx:3,dy:3});
+  add('pu_speed.png',11,6,{z:5,w:CELL-6,h:CELL-6,dx:3,dy:3});
+
+  return arena;
+}
+
+const SHEET_GROUPS = [
+  {title:'Terrain', items:[['floor.png','Floor'],['wall.png','Wall'],['block.png','Block']]},
+  {title:'Bomb (fuse)', items:[['bomb1.png','t-0'],['bomb2.png','t-1'],['bomb3.png','t-2']], dark:true},
+  {title:'Explosion', items:[['exp_center.png','center'],['exp_arm_h.png','arm·h'],['exp_arm_v.png','arm·v'],['exp_tip_l.png','tip·L'],['exp_tip_r.png','tip·R'],['exp_tip_u.png','tip·U'],['exp_tip_d.png','tip·D']], dark:true},
+  {title:'Bomber (4-dir + walk)', items:[['char_down1.png','down'],['char_down2.png','down·2'],['char_up1.png','up'],['char_left1.png','side'],['char_left2.png','side·2']]},
+  {title:'Enemy', items:[['enemy1.png','idle'],['enemy2.png','move']]},
+  {title:'Power-ups', items:[['pu_fire.png','range'],['pu_bomb.png','+bomb'],['pu_speed.png','speed'],['pu_shield.png','shield']]},
+];
+
+function buildSheet(theme){
+  const base = `sprites/${theme.id}/`;
+  const sheet = document.createElement('div');
+  sheet.className='sheet';
+  for(const grp of SHEET_GROUPS){
+    const g=document.createElement('div');
+    const t=document.createElement('p'); t.className='sgroup-title'; t.textContent=grp.title; g.appendChild(t);
+    const row=document.createElement('div'); row.className='swrow';
+    for(const [file,cap] of grp.items){
+      const cell=document.createElement('div'); cell.className='cell';
+      const thumb=document.createElement('div'); thumb.className='thumb'+(grp.dark?' dark':'');
+      const im=document.createElement('img'); im.src=base+file; thumb.appendChild(im);
+      const cp=document.createElement('div'); cp.className='cap'; cp.textContent=cap;
+      cell.appendChild(thumb); cell.appendChild(cp); row.appendChild(cell);
+    }
+    g.appendChild(row); sheet.appendChild(g);
+  }
+  return sheet;
+}
+
+const root=document.getElementById('variants');
+THEMES.forEach((theme,i)=>{
+  const v=document.createElement('section'); v.className='variant';
+  v.setAttribute('data-screen-label', theme.name);
+  const head=document.createElement('div'); head.className='vhead';
+  head.innerHTML = `<span class="vnum">VARIANT ${String(i+1).padStart(2,'0')}</span>
+    <h2 class="vname"><span class="swatch-dot" style="background:${theme.dot}"></span>${theme.name}</h2>
+    <span class="vtag">${theme.tag}</span>`;
+  v.appendChild(head);
+  const body=document.createElement('div'); body.className='vbody';
+  const left=document.createElement('div');
+  left.appendChild(buildArena(theme));
+  const al=document.createElement('div'); al.className='alabel';
+  al.textContent='// arena preview — tiles composited from the actual PNGs';
+  left.appendChild(al);
+  body.appendChild(left);
+  body.appendChild(buildSheet(theme));
+  v.appendChild(body);
+  root.appendChild(v);
+});
+</script>
+</body>
+</html>
