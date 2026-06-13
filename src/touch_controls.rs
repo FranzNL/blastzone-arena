@@ -59,19 +59,19 @@ fn spawn_btn(
 
 fn setup_touch_buttons(mut commands: Commands, assets: Res<GameAssets>) {
     let font = assets.font.clone();
-    let lx = BTN_MARGIN;
-    let mid_x = BTN_MARGIN + BTN_SIZE + BTN_GAP;
+    // D-pad on the RIGHT, bomb on the LEFT
+    let mid_rx = BTN_MARGIN + BTN_SIZE + BTN_GAP; // middle column offset from right edge
 
     commands.spawn((
         Node { width: Val::Percent(100.0), height: Val::Percent(100.0), position_type: PositionType::Absolute, ..default() },
         TouchControl,
         PickingBehavior { should_block_lower: false, is_hoverable: false },
     )).with_children(|p| {
-        spawn_btn(p, "^", font.clone(), Some(mid_x), None, Some(BTN_MARGIN + BTN_SIZE * 2.0 + BTN_GAP), TouchBtnUp);
-        spawn_btn(p, "v", font.clone(), Some(mid_x), None, Some(BTN_MARGIN), TouchBtnDown);
-        spawn_btn(p, "<", font.clone(), Some(lx), None, Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnLeft);
-        spawn_btn(p, ">", font.clone(), Some(mid_x + BTN_SIZE + BTN_GAP), None, Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnRight);
-        spawn_btn(p, "B", font.clone(), None, Some(BTN_MARGIN), Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnBomb);
+        spawn_btn(p, "^", font.clone(), None, Some(mid_rx), Some(BTN_MARGIN + BTN_SIZE * 2.0 + BTN_GAP), TouchBtnUp);
+        spawn_btn(p, "v", font.clone(), None, Some(mid_rx), Some(BTN_MARGIN), TouchBtnDown);
+        spawn_btn(p, "<", font.clone(), None, Some(mid_rx + BTN_SIZE + BTN_GAP), Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnLeft);
+        spawn_btn(p, ">", font.clone(), None, Some(BTN_MARGIN), Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnRight);
+        spawn_btn(p, "B", font.clone(), Some(BTN_MARGIN), None, Some(BTN_MARGIN + BTN_SIZE + BTN_GAP * 0.5), TouchBtnBomb);
     });
 }
 
