@@ -2,6 +2,7 @@
   <img src="assets/icon-256.png" alt="BlastZone Arena" width="128" />
   <h1>BlastZone Arena</h1>
   <p>A modern open-source arena game inspired by classic bomb-placement games<br>built with <strong>Rust</strong> and <strong>Bevy 0.15</strong>.</p>
+  <img src="assets/BlastZoneArena-Gamescreen.png" alt="BlastZone Arena Gamescreen" width="600" />
 </div>
 
 ---
